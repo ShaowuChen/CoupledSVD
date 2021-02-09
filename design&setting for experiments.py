@@ -41,7 +41,7 @@ BotteleNeck:分解layer1, 只分解Conv2————因为conv1/conv3处理起�
     
     2.2.Imagenet：挑着做
         SVD, TT, (JSVD), PCSVD+FCSVD
-            ResNet34; 
+            ResNet18? ResNet34; 
             layer1不分解；
             第一层PCSVD，其余层FCSVD；
             Focus on high CR;
@@ -84,12 +84,32 @@ TODO:
 
 3、针对第一层PCSVD，其余层FCSVD模式，需要做一些代码改变
 
+  特别是，对PCSVD,FCSVD传入的layer_list, repeat_list, conv_list, layers_out_channels需要再整整
+
 4、修改get_parameters dict 中PCSVD FCSVD对应的UV变量名字，方便两种模式混合使用 
 
 5、修改JSVD中的U，改为U_JSVD?? 否则回合independent中的U起冲突
+
+
+
 
 维持以O为选择标准？？
 
 写作：
 不写rq了，只写压缩率；
 对于Coupled，写 shared:Independent = 1:几这样子
+
+'''
+=============Bug&Debug===============
+'''
+#bug:
+FCSVD的CR不对，大概率出在decom_conv1上
+
+#debug
+应该设置conv_decom=False
+
+
+
+python get_parameter.py --rank_rate_SVD=0.5  --rank_rate_shared=0.2  --method=SVD  --decom_conv1=True  --model=resnet34 --dataset=cifar10
+python get_parameter.py --rank_rate_SVD=0.5  --rank_rate_shared=0.1  --method=SVD  --decom_conv1=True  --model=resnet34 --dataset=cifar10
+这两项数据不一样一样，有问题

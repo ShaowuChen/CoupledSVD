@@ -24,7 +24,7 @@ import os
 # from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
-cifar_path = '/home/test01/sambashare/sdh/resnet18/cifar-10-batches-bin'
+cifar_path = '/mnt/sdb1/CSW/cifar-10-batches-bin'
 # Process images of this size. Note that this differs from the original CIFAR
 # image size of 32 x 32. If one alters this number, then the entire model
 # architecture will change and any model would need to be retrained.

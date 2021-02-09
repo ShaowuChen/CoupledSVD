@@ -73,7 +73,7 @@ class ImagenetData(Dataset):
         Raises:
           ValueError: if there are not data_files matching the subset.
         """
-        data_dir = '/home/test01/sambashare/sdd/ImageNet_Dataset_TFRecords'
+        data_dir = '/mnt/sdb1/CSW/ImageNet_Dataset_TFRecords'
         tf_record_pattern = os.path.join(data_dir, '%s-*' % self.subset)
         data_files = tf.gfile.Glob(tf_record_pattern)
         if self.subset == 'validation':

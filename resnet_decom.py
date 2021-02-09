@@ -3,11 +3,6 @@ import numpy as np
 
 flags = tf.flags
 FLAGS=flags.FLAGS
-'''
-Author: Shaowu Chen
-Email: shaowu-chen@foxmail.com
-'''
-
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']
 
@@ -65,10 +60,10 @@ def Independent_Component(in_tensor, layer_num, repeat_num, conv_num, stride, we
     name_weight1 = name_weight + 'U'
     name_weight2 = name_weight + 'V'
 
-    weight1 = tf.get_variable(name=name_weight1, initializer=tf.constant(proposed_dict[name_weight1]), regularizer=regularizer)
+    weight1 = tf.get_variable(name=name_weight1, initializer=tf.constant(weight_dict[name_weight1]), regularizer=regularizer)
     tensor_go_next = tf.nn.conv2d(in_tensor, weight1, [1, stride, 1, 1], padding='SAME')
     
-    weight2 = tf.get_variable(name=name_weight2, initializer=tf.constant(proposed_dict[name_weight2]), regularizer=regularizer)
+    weight2 = tf.get_variable(name=name_weight2, initializer=tf.constant(weight_dict[name_weight2]), regularizer=regularizer)
     tensor_go_next = tf.nn.conv2d(tensor_go_next, weight2, [1, 1, stride, 1], padding='SAME')
 
     return tensor_go_next
@@ -76,23 +71,23 @@ def Independent_Component(in_tensor, layer_num, repeat_num, conv_num, stride, we
 
 def JSVD(in_tensor, layer_num, repeat_num, conv_num, stride, weight_dict, choice=None, initializer=None, regularizer=None):
     #independent U, shared V      
-    name_weight1 = 'layer' + str(layer_num) + '.' + str(repeat_num) + '.conv' + str(conv_num) + '.U'
+    name_weight1 = 'layer' + str(layer_num) + '.' + str(repeat_num) + '.conv' + str(conv_num) + '.U_partly_shared'
     name_weight2 = 'layer' + str(layer_num) + '.conv' + str(conv_num) + '.V_shared'
 
-    weight1 = tf.get_variable(name=name_weight1, initializer=tf.constant(proposed_dict[name_weight1]), regularizer=regularizer)
+    weight1 = tf.get_variable(name=name_weight1, initializer=tf.constant(weight_dict[name_weight1]), regularizer=regularizer)
     tensor_go_next = tf.nn.conv2d(in_tensor, weight1, [1, stride, 1, 1], padding='SAME')
     
-    weight2 = tf.get_variable(name=name_weight2, initializer=tf.constant(proposed_dict[name_weight2]), regularizer=regularizer)
+    weight2 = tf.get_variable(name=name_weight2, initializer=tf.constant(weight_dict[name_weight2]), regularizer=regularizer)
     tensor_go_next = tf.nn.conv2d(tensor_go_next, weight2, [1, 1, stride, 1], padding='SAME')
 
     return tensor_go_next
 
 
 def conv3x3(in_tensor, out_channels:int, layer_num, repeat_num, conv_num, stride, weight_dict=None, initializer=None, regularizer=None):
-    assert(FLAGS.method in ['SVD', 'TT', 'JSVD', 'PCSVD', 'FCSVD'])
+    assert(FLAGS.method in ['SVD', 'TT', 'JSVD', 'PCSVD', 'FCSVD', 'PCSVD+FCSVD'])
     assert(FLAGS.decom_conv1 in [False, True])
 
-    if FLAGS.decom_conv1==False and  conv_num=='1':#keep it the same
+    if (FLAGS.decom_conv1==False and  conv_num=='1') or (FLAGS.model in ['resnet18', 'resnet34'] and layer_num==1):#keep it the same
         name_weight = 'layer'+ str(layer_num) + '.'+str(repeat_num) + '.' + 'conv' + str(conv_num) + '.weight'
         weight = tf.get_variable(name=name_weight, initializer=tf.constant(weight_dict[name_weight]), regularizer=regularizer) 
         tensor_go_next = tf.nn.conv2d(in_tensor, weight, strides=[1,stride, stride,1], padding='SAME')
@@ -100,30 +95,28 @@ def conv3x3(in_tensor, out_channels:int, layer_num, repeat_num, conv_num, stride
     else:
         name_weight = 'layer'+ str(layer_num) + '.'+str(repeat_num) + '.' + 'conv' + str(conv_num) + '.'
 
-
         if FLAGS.method=='SVD':
             name_weight1 = name_weight + 'U'
             weight1  = tf.get_variable(name=name_weight1, initializer=tf.constant(weight_dict[name_weight1]), regularizer=regularizer) 
-            tensor_go_next = tf.nn.conv2d(in_tensor, weight1, [1, stride, 1, 1])
+            tensor_go_next = tf.nn.conv2d(in_tensor, weight1, [1, stride, 1, 1], padding='SAME')
 
             name_weight2 = name_weight + 'V'
             weight2  = tf.get_variable(name=name_weight2, initializer=tf.constant(weight_dict[name_weight2]), regularizer=regularizer) 
-            tensor_go_next = tf.nn.conv2d(tensor_go_next, weight2, [1, 1, stride, 1])
-
+            tensor_go_next = tf.nn.conv2d(tensor_go_next, weight2, [1, 1, stride, 1], padding='SAME')
 
         elif FLAGS.method=='TT':
 
             name_weight1 = name_weight + '1'
             weight1  = tf.get_variable(name=name_weight1, initializer=tf.constant(weight_dict[name_weight1]), regularizer=regularizer) 
-            tensor_go_next = tf.nn.conv2d(in_tensor, weight1, [1, 1, 1, 1])
+            tensor_go_next = tf.nn.conv2d(in_tensor, weight1, [1, 1, 1, 1], padding='SAME')
 
             name_weight2 = name_weight + '2'
             weight2  = tf.get_variable(name=name_weight2, initializer=tf.constant(weight_dict[name_weight2]), regularizer=regularizer) 
-            tensor_go_next = tf.nn.conv2d(tensor_go_next, weight2, [1, stride, stride, 1])
+            tensor_go_next = tf.nn.conv2d(tensor_go_next, weight2, [1, stride, stride, 1], padding='SAME')
 
             name_weight3 = name_weight + '3'
             weight3  = tf.get_variable(name=name_weight3, initializer=tf.constant(weight_dict[name_weight3]), regularizer=regularizer) 
-            tensor_go_next = tf.nn.conv2d(tensor_go_next, weight3, [1, 1, 1, 1])
+            tensor_go_next = tf.nn.conv2d(tensor_go_next, weight3, [1, 1, 1, 1], padding='SAME')
 
         elif FLAGS.method=='JSVD':
             tensor_go_next = JSVD(in_tensor, layer_num, repeat_num, conv_num, stride, weight_dict, initializer, regularizer)
@@ -138,67 +131,38 @@ def conv3x3(in_tensor, out_channels:int, layer_num, repeat_num, conv_num, stride
             tensor_go_next_independent = Independent_Component(in_tensor, layer_num, repeat_num, conv_num, stride, weight_dict, initializer, regularizer)
             tensor_go_next = tensor_go_next_fully_share + tensor_go_next_independent
 
-    return tensor_go_next
+        elif FLAGS.method=='PCSVD+FCSVD':
+            assert(FLAGS.model in ['resnet18', 'resnet34'])
+            if conv_num==1:
+                tensor_go_next_Partly_share = JSVD(in_tensor, layer_num, repeat_num, conv_num, stride, weight_dict, initializer, regularizer)
+                tensor_go_next_independent = Independent_Component(in_tensor, layer_num, repeat_num, conv_num, stride, weight_dict, initializer, regularizer)
+                tensor_go_next = tensor_go_next_Partly_share + tensor_go_next_independent
+            elif conv_num==2:
+                tensor_go_next_fully_share = Shared_Component(in_tensor, layer_num, conv_num, stride, weight_dict, initializer, regularizer)
+                tensor_go_next_independent = Independent_Component(in_tensor, layer_num, repeat_num, conv_num, stride, weight_dict, initializer, regularizer)
+                tensor_go_next = tensor_go_next_fully_share + tensor_go_next_independent
+            else:
+                print(conv_num)
+                assert(0)
 
+    return tensor_go_next
 
 def conv1x1(in_tensor, out_channels:int, layer_num, repeat_num, conv_num, stride, weight_dict=None, initializer=None, regularizer=None, downsample=False):
     # with tf.device('/cpu:0'):
     if downsample==False:#botteneck
-        assert(FLAGS.method in ['SVD', 'TT', 'JSVD', 'PCSVD', 'FCSVD'])
-        assert(FLAGS.decom_conv1 in [False, True])
-
-        if FLAGS.decom_conv1==False and  conv_num=='1':#keep it the same
-            name_weight = 'layer'+ str(layer_num) + '.'+str(repeat_num) + '.' + 'conv' + str(conv_num) + '.weight'
-            weight = tf.get_variable(name=name_weight, initializer=tf.constant(weight_dict[name_weight]), regularizer=regularizer) 
-            tensor_go_next = tf.nn.conv2d(in_tensor, weight, strides=[1,stride, stride,1], padding='SAME')
-
-        else:
-            name_weight = 'layer'+ str(layer_num) + '.'+str(repeat_num) + '.' + 'conv' + str(conv_num) + '.'
-
-
-            if FLAGS.method=='SVD':
-                name_weight1 = name_weight + 'U'
-                weight1  = tf.get_variable(name=name_weight1, initializer=tf.constant(weight_dict[name_weight1]), regularizer=regularizer) 
-                tensor_go_next = tf.nn.conv2d(in_tensor, weight1, [1, stride, 1, 1])
-
-                name_weight2 = name_weight + 'V'
-                weight2  = tf.get_variable(name=name_weight2, initializer=tf.constant(weight_dict[name_weight2]), regularizer=regularizer) 
-                tensor_go_next = tf.nn.conv2d(tensor_go_next, weight2, [1, 1, stride, 1])
-
-
-            elif FLAGS.method=='TT':
-
-                name_weight1 = name_weight + '1'
-                weight1  = tf.get_variable(name=name_weight1, initializer=tf.constant(weight_dict[name_weight1]), regularizer=regularizer) 
-                tensor_go_next = tf.nn.conv2d(in_tensor, weight1, [1, 1, 1, 1])
-
-                name_weight2 = name_weight + '2'
-                weight2  = tf.get_variable(name=name_weight2, initializer=tf.constant(weight_dict[name_weight2]), regularizer=regularizer) 
-                tensor_go_next = tf.nn.conv2d(tensor_go_next, weight2, [1, stride, stride, 1])
-
-                name_weight3 = name_weight + '3'
-                weight3  = tf.get_variable(name=name_weight3, initializer=tf.constant(weight_dict[name_weight3]), regularizer=regularizer) 
-                tensor_go_next = tf.nn.conv2d(tensor_go_next, weight3, [1, 1, 1, 1])
-
-            elif FLAGS.method=='JSVD':
-                tensor_go_next = JSVD(in_tensor, layer_num, repeat_num, conv_num, stride, weight_dict, initializer, regularizer)
-
-            elif FLAGS.method=='PCSVD':
-                tensor_go_next_Partly_share = JSVD(in_tensor, layer_num, repeat_num, conv_num, stride, weight_dict, initializer, regularizer)
-                tensor_go_next_independent = Independent_Component(in_tensor, layer_num, repeat_num, conv_num, stride, weight_dict, initializer, regularizer)
-                tensor_go_next = tensor_go_next_Partly_share + tensor_go_next_independent
-
-            elif FLAGS.method=='FCSVD':
-                tensor_go_next_fully_share = Shared_Component(in_tensor, layer_num, conv_num, stride, weight_dict, initializer, regularizer)
-                tensor_go_next_independent = Independent_Component(in_tensor, layer_num, repeat_num, conv_num, stride, weight_dict, initializer, regularizer)
-                tensor_go_next = tensor_go_next_fully_share + tensor_go_next_independent
-
-    else:#shorcut weight， keep it the same
+        name_weight = 'layer'+ str(layer_num) + '.'+str(repeat_num) + '.' + 'conv' + str(conv_num) + '.weight'
+    else:#shorcut weight
         name_weight = 'layer'+ str(layer_num) + '.'+str(repeat_num) + '.' + 'downsample.0.weight'
-        weight = tf.get_variable(name=name_weight, initializer=tf.constant(weight_dict[name_weight]), regularizer=regularizer)       
-        tensor_go_next = tf.nn.conv2d(in_tensor, weight, strides=[1,stride, stride,1], padding='SAME')
+
+    if weight_dict!=None:
+        weight = tf.get_variable(name=name_weight, initializer=tf.constant(weight_dict[name_weight]), regularizer=regularizer)        
+    else:
+        weight = tf.get_variable(shape=[1, 1, in_tensor.shape[3], out_channels], name=name_weight, dtype=tf.float32, initializer=initializer, regularizer=regularizer)
+
+    tensor_go_next = tf.nn.conv2d(in_tensor, weight, strides=[1,stride, stride,1], padding='SAME')
 
     return tensor_go_next
+
 
 
 def BasicBlock(in_tensor, layer_num, repeat_num, is_training, weight_dict=None, initializer=None, regularizer=None):
@@ -290,8 +254,9 @@ def ResNet(x_palceholder, block_function, dataset, layer_list, is_training, weig
 
     def _make_layer(in_tensor, block_function, layer_num, repeat_times, is_training, weight_dict=None, initializer=None, regularizer=None):
         tensor_go_next =  in_tensor
-        for i in range(repeat_times):
-            tensor_go_next = block_function(tensor_go_next, layer_num, i, is_training, weight_dict, initializer, regularizer)
+        with tf.variable_scope('', reuse=tf.AUTO_REUSE):
+            for i in range(repeat_times):
+                tensor_go_next = block_function(tensor_go_next, layer_num, i, is_training, weight_dict, initializer, regularizer)
         return tensor_go_next
 
     weight_conv1, weight_fc, bias_fc =  set_variable_other_layer(dataset, block_function, weight_dict, initializer, regularizer)
